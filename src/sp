@@ -1,0 +1,12 @@
+#! /bin/bash
+
+pth=$(pwd)
+if [ $# -ge 1 ];then
+    pth=$1
+fi
+
+if [ -d $pth ];then
+    du -h --max-depth=1 $pth | sort -k1h
+else
+    echo "bad path..."
+fi

@@ -9,10 +9,15 @@ from .template import (
     node_filter
 )
 
+from .bloomfilter import (
+    bloomfilter
+)
+
 __all__ = [
     manage,
     schedule,
     parse,
     path_detect,
-    node_filter
+    node_filter,
+    bloomfilter
 ]

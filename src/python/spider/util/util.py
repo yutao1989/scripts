@@ -12,6 +12,7 @@ from lxml import etree
 import json
 import os
 import template
+from bloomfilter import bloomfilter
 
 Headers = {
     "Accept-Language":"zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.4",
@@ -20,6 +21,7 @@ Headers = {
     }
 cj = None
 logger = None
+bf = None
 
 def print_cookies(cj):
     print("="*20)
@@ -124,7 +126,8 @@ def log_msg(msg,tp="info"):
 
 def init():
     socket.setdefaulttimeout(5)
-    global cj
+    global cj,bf
+    bf = bloomfilter()
     cj = cookielib.CookieJar()
     fname = "data/.cookie"
     if os.path.exists("data/.cookie"):
@@ -133,12 +136,14 @@ def init():
     urllib2.install_opener(opener)
 
 def close():
-    global cj,logger
+    global cj,logger,bf
     fname = "data/.cookie"
     if cj is not None:
         save_cookies(cj._cookies,open(fname,"w"))
     if logger is not None:
         logger.close()
+    if bf is not None:
+        bf.close()
 
 def decode_content(html,encoding=None):
     if encoding is not None:
@@ -212,10 +217,13 @@ def get_page(status, data=None, headers=None):
 
 def schedule(seeds,conf,data_fp):
     q = []
+    global bf
     for seed in seeds:
         q.append(seed)
     while len(q) > 0:
         item = q.pop()
+        if bf.exists(item["url"]):
+            continue
         url_parts = item["url"].split("&")[0].strip("/").split("/")
         host = url_parts[2]
         if host in conf:

@@ -38,13 +38,6 @@ def get_path(node):
         p = p.getparent()
     return "_".join(paths[::-1])
 
-def merge(mp1,mp2):
-    copy_mp = mp2.copy()
-    for key in mp1.keys():
-        if key not in copy_mp:
-            copy_mp[key] = mp1[key]
-    return copy_mp
-
 def fill_detail(key,source,target):
     if "__keys" in target and key in target["__keys"]:
         for field_info in target["__keys"][key]:
@@ -80,7 +73,8 @@ def get_context(lst):
         if len(mp) > 0:
             item[2]["__keys"] = mp
         paths.append((get_path(item[1]),item[0],item[2]))
-    paths.sort(lambda a1,a2:1 if a1[0]>a2[0] else (0 if a1[0]==a2[0] else -1))
+    kf = lambda o:o[0]
+    paths.sort(key=kf)
     ctx = []
     for item in paths:
         if len(ctx) == 0 or item[0].startswith(ctx[-1][0]+"_"):
@@ -126,7 +120,7 @@ def get_data(key,conf,node,ctx,result):
                     # do something
                     print("size not equal")
             lst.append(item)
-        result[key] = zip(*tuple(lst))
+        result[key] = list(zip(*tuple(lst)))
     elif conf[0] == "func":
         result[key] = conf[1](ctx)
     elif conf[0] == "const":

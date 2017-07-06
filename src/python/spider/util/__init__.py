@@ -1,6 +1,7 @@
 from .util import (
     manage,
-    schedule
+    schedule,
+    get_page
 )
 
 from .template import (
@@ -19,5 +20,6 @@ __all__ = [
     parse,
     path_detect,
     node_filter,
-    bloomfilter
+    bloomfilter,
+    get_page
 ]

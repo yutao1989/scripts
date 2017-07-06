@@ -17,7 +17,7 @@ class bloomfilter():
 
     def query_set_bit(self,idx,value):
         tmp_data = self.data[idx]
-        sidx = value/16
+        sidx = int(value/16)
         bidx = value%16
         v = 1<<bidx
         if (tmp_data[sidx] & v) == 0:
@@ -27,7 +27,7 @@ class bloomfilter():
             return False
 
     def exists(self,url):
-        md5 = hashlib.md5(url).hexdigest()
+        md5 = hashlib.md5(url.encode("utf-8")).hexdigest()
         exist = True
         for i in range(8):
             if self.query_set_bit(i,int(md5[i*4:i*4+4],16)):

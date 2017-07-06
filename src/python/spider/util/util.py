@@ -1,18 +1,17 @@
-import urllib2
-import urllib
-import cookielib
+from urllib import request
+from urllib import parse
+from http import cookiejar
 import time
 import socket
 import traceback
 import chardet
-import StringIO
 import gzip
 import sys
 from lxml import etree
 import json
 import os
-import template
-from bloomfilter import bloomfilter
+from .template import parse as tparse
+from .bloomfilter import bloomfilter
 
 Headers = {
     "Accept-Language":"zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.4",
@@ -22,70 +21,7 @@ Headers = {
 cj = None
 logger = None
 bf = None
-
-def print_cookies(cj):
-    print("="*20)
-    if cj is None:
-        return
-    cks = cj._cookies
-    for key in cks.keys():
-        scks = cks[key]
-        for skey in scks.keys():
-            sscks = scks[skey]
-            for sskey in sscks.keys():
-                print(key,skey,sskey,sscks[sskey])
-    print("="*20)
-
-def load_cookies(fp, cj):
-    for line in fp: 
-        items = line.strip().split("\t")
-        tmp = []
-        if len(items) > 3:
-            tmp.append(items[0])
-            tmp.append(items[1])
-            m1 = {"version":"0"}
-            m1["path"] = items[3]
-            turl = None
-            if len(items[2].strip()) > 0:
-                items[2] = items[2].strip()
-                if items[2][0] == ".":
-                    m1["domain"] = items[2]
-                    turl = items[2]
-                else:
-                    turl = "http://"+items[2]
-            tmp.append(m1)
-            if len(items) > 6 and len(items[6].strip()) > 0:
-                tmp.append({"HttpOnly":None})
-            else:
-                tmp.append({})
-            url = None
-            if turl[0] == ".":
-                url = "http://www"+turl
-            elif turl[:4] != "http":
-                url = "http://"+turl
-            else:
-                url = turl
-            fake_request = urllib2.Request(url)
-            cookie = cj._cookie_from_cookie_tuple(tmp,fake_request)
-            cj.set_cookie(cookie)
-
-def save_cookies(cookieMp, fp):
-    result = []
-    cookies = []
-    for key in cookieMp.keys():
-        scks = cookieMp[key]
-        for skey in scks.keys():
-            sscks = scks[skey]
-            for sskey in sscks.keys():
-                cookies.append(sscks[sskey])
-    for cookie in cookies:
-        tmp = []
-        tmp.append(cookie.name)
-        tmp.append(cookie.value)
-        tmp.append(cookie.domain)
-        tmp.append(cookie.path)
-        result.append("\t".join(tmp))
-    fp.write("\n".join(result))
+fname = "data/.cookie"
 
 class log:
     def __init__(self, info_file=None, error_file=None):
@@ -95,7 +31,8 @@ class log:
         self.count2 = 0
 
     def push(self, stream, msg, tp):
-        stream.write(('%s\t[%s]\t%s\n' % (tp, time.ctime(), msg)).encode('utf-8'))
+        #stream.write(('%s\t[%s]\t%s\n' % (tp, time.ctime(), msg)).encode('utf-8'))
+        stream.write('%s\t[%s]\t%s\n' % (tp, time.ctime(), msg))
 
     def log_info(self, msg, tp='info'):
         self.push(self.info_stream, msg, tp)
@@ -126,74 +63,76 @@ def log_msg(msg,tp="info"):
 
 def init():
     socket.setdefaulttimeout(5)
-    global cj,bf
+    global cj,bf,fname
     bf = bloomfilter()
-    cj = cookielib.CookieJar()
-    fname = "data/.cookie"
-    if os.path.exists("data/.cookie"):
-        load_cookies(open(fname),cj)
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-    urllib2.install_opener(opener)
+    cj = cookiejar.LWPCookieJar()
+    if fname is not None and os.path.exists(fname):
+        cj.load(fname)
+        
+    opener = request.build_opener(request.HTTPCookieProcessor(cj))
+    request.install_opener(opener)
 
 def close():
-    global cj,logger,bf
-    fname = "data/.cookie"
-    if cj is not None:
-        save_cookies(cj._cookies,open(fname,"w"))
+    global cj,logger,bf,fname
+    if cj is not None and isinstance(cj,cookiejar.LWPCookieJar):
+        cj.save(fname)
     if logger is not None:
         logger.close()
     if bf is not None:
         bf.close()
 
-def decode_content(html,encoding=None):
+def decode_content(url,html,isgzip=False,encoding=None):
+    if isgzip:
+            html = gzip.decompress(html)
     if encoding is not None:
-        if encoding.lower().strip() == "gzip":
-            tmp = StringIO.StringIO(html)
-            gzipper = gzip.GzipFile(fileobj=tmp)
-            html = gzipper.read()
-            result = chardet.detect(html)
-            return  html.decode(result['encoding'], 'ignore')
-    result = chardet.detect(html)
-    if result['encoding'] is None:
-        tmp = StringIO.StringIO(html)
-        gzipper = gzip.GzipFile(fileobj=tmp)
-        html = gzipper.read()
-        result = chardet.detect(html)
-        return  html.decode(result['encoding'], 'ignore')
+        html = html.decode(encoding)
     else:
-        return html.decode(result['encoding'], 'ignore')
+        result = chardet.detect(html)
+        if result['encoding'] is None or result["confidence"] < .8:
+            log_msg("could not detect content encoding,url:%s" % url,"error")
+            html = html.decode("utf-8")
+        else:
+            html = html.decode(result['encoding'], 'ignore')
+    return html
+
+def merge(mp1,mp2):
+    copy_mp = mp2.copy()
+    for key in mp1.keys():
+        if key not in copy_mp:
+            copy_mp[key] = mp1[key]
+    return copy_mp
         
-def get_page(status, data=None, headers=None):
+def get_page(status):
     time.sleep(2)
     html = ''
     code = ''
     retry = 4
     url = status["url"]
-    if headers is None:
-        headers = Headers
-    if "referer" in status:
-        headers["referer"] = status["referer"]
-    if data is not None and type(data) == type({}):
-        data = urllib.urlencode(data)
+    method = "GET" if "method" not in status else status["method"]
+    headers = merge(Headers,status["headers"]) if "headers" in status else Headers
+    data = status["data"] if "data" in status else None
+    if data is not None:
+        if type(data) == type({}):
+            data = bytes(parse.urlencode(data),"utf-8")
+        method = "POST"
     response = None
     while True:
         try:
-            request = urllib2.Request(url, data, headers)
-            response = urllib2.urlopen(request)
+            req = request.Request(url, data, headers,method=method)
+            response = request.urlopen(req)
             code = str(response.getcode())
             log_msg('%s\t%s\t%s' % (url, code ,"" if data is None else str(data)))
             assert code[0] == "2"
-            #if code[0] == '2':
-            if True:
-                html = response.read()
-                html = decode_content(html, response.headers.getheader("Content-Encoding"))
-            #else:
-            #    log_msg("unknown return code:%s,url:%s" % (code,response.geturl()), "error")
-            #    html = None
+            html = response.read()
+            isgzip = response.headers.get("Content-Encoding")
+            isgzip = True if "Content-Encoding" in response.headers and response.headers.get("Content-Encoding").lower() == "gzip" else False
+            encoding = {o.split(":")[0].strip():o.split(":")[1].strip() for o in response.headers.get("Content-Type").split(";") if o.find(":") > -1} if "Content-Type" in response.headers else {}
+            encoding = encoding["charset"] if "charset" in encoding else None
+            html = decode_content(url,html, isgzip,encoding)
             break
-        except Exception,e:
-            #tp, e,trace = sys.exc_info()
-            #print("<"*30,str(e))
+        except Exception:
+            tp, e,trace = sys.exc_info()
+            print(e)
             if hasattr(e, "getcode") and retry > 0:
                 code = str(e.getcode())
                 #print(code,e.geturl())
@@ -227,7 +166,7 @@ def schedule(seeds,conf,data_fp):
         url_parts = item["url"].split("&")[0].strip("/").split("/")
         host = url_parts[2]
         if host in conf:
-            nurl,html = get_page(item,item["data"] if "data" in item else None)
+            nurl,html = get_page(item)
             if nurl != item["url"]:
                 url_parts = nurl.split("&")[0].strip("/").split("/")
                 host = url_parts[2]
@@ -236,7 +175,7 @@ def schedule(seeds,conf,data_fp):
             path = "/"+"/".join(url_parts[3:])
             for sconf in conf[host]:
                 if sconf[0](path,sconf[1],html):
-                    datas,urls = template.parse(html,sconf[1],item)
+                    datas,urls = tparse(html,sconf[1],item)
                     for data in datas:
                         data_fp.write("%s\t%s\t%s\t%s\n" % (host,path,data[0],json.dumps(data[1])))
                     for url_entry in urls:

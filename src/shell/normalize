@@ -1,0 +1,12 @@
+#! /bin/bash
+
+pth=$(pwd)
+if [ $# -ge 1 ];then
+    pth=$1
+fi
+
+if [ -d $pth ];then
+    find $pth -name \* | grep "/\." -v | xargs -i echo   test -f {} "&&" ls -lh {} | bash | sed 's/[ \t]\+/\t/g'  | sort -t "	" -k5h
+else
+    echo "bad path..."
+fi

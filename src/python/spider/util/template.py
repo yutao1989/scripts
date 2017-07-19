@@ -10,15 +10,13 @@ def get_jpath(obj, lst):
     if lst[0] == "func":
         return lst[1](obj)
     for item in lst:
-        tp = type(item)
-        tp_tmp = type(tmp)
-        if tp in str_type:
-            if tp_tmp == type({}) and item in tmp:
+        if isinstance(item,str):
+            if isinstance(tmp,dict) and item in tmp:
                 tmp = tmp[item]
             else:
                 return None
-        elif tp == type(1):
-            if tp_tmp in lst_type and item >= 0 and item < len(tmp):
+        elif isinstance(item,int):
+            if isinstance(tmp,list) and item >= 0 and item < len(tmp):
                 tmp = tmp[item]
             else:
                 return None

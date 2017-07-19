@@ -23,6 +23,22 @@ logger = None
 bf = None
 fname = "data/.cookie"
 
+def parse_url(surl, target, base=None):
+    if not surl.startswith('http'):
+        return None
+    if target.startswith("javascript"):
+        return None
+    parts = surl.split('/')
+    if target.startswith('http'):
+        return target
+    elif target.startswith('/'):
+        return '/'.join(parts[:3])+target
+    else:
+        if base is not None:
+            return base+target
+        else:
+            return '/'.join(surl.split('/')[:-1])+'/'+target
+
 class log:
     def __init__(self, info_file=None, error_file=None):
         self.info_stream = open(info_file, 'a') if info_file is not None else sys.stdout
@@ -190,7 +206,14 @@ def schedule(seeds,conf,data_fp):
                         data_fp.write("%s\t%s\t%s\t%s\n" % (host,path,data[0],json.dumps(data[1])))
                     for url_entry in urls:
                         url_entry["referer"] = nurl
-                        q.append(url_entry)
+                        if "url" in url_entry:
+                            if not url_entry["url"].startswith("http"):
+                                turl = parse_url(nurl,url_entry["url"])
+                                if turl is not None:
+                                    url_entry["url"] = turl
+                                    q.append(url_entry)
+                            else:
+                                q.append(url_entry)
 
 def manage(callback,params=None):
     init()

@@ -101,6 +101,12 @@ def merge(mp1,mp2):
         if key not in copy_mp:
             copy_mp[key] = mp1[key]
     return copy_mp
+
+def get_header_ignore_case(mp,key):
+    for k in mp.keys():
+        if k.lower() == key.lower():
+            return mp[k].lower()
+    return ""
         
 def get_page(status):
     time.sleep(2)
@@ -114,7 +120,9 @@ def get_page(status):
     if data is not None:
         if type(data) == type({}):
             data = bytes(parse.urlencode(data),"utf-8")
-        method = "POST"
+            if method == "GET":
+                url = url + "?" + data.decode("utf-8")
+                data = None
     response = None
     while True:
         try:
@@ -124,9 +132,11 @@ def get_page(status):
             log_msg('%s\t%s\t%s' % (url, code ,"" if data is None else str(data)))
             assert code[0] == "2"
             html = response.read()
-            isgzip = response.headers.get("Content-Encoding")
-            isgzip = True if "Content-Encoding" in response.headers and response.headers.get("Content-Encoding").lower() == "gzip" else False
-            encoding = {o.split(":")[0].strip():o.split(":")[1].strip() for o in response.headers.get("Content-Type").split(";") if o.find(":") > -1} if "Content-Type" in response.headers else {}
+            isgzip = True if get_header_ignore_case(response.headers,"Content-Encoding") == "gzip" else False
+            content_type = get_header_ignore_case(response.headers,"Content-Type")
+            encoding = {o.split(":")[0].strip():o.split(":")[1].strip() for o in content_type.split(";") if o.find(":") > -1}
+            if "charset" not in encoding:
+                encoding = {o.split("=")[0].strip():o.split("=")[1].strip() for o in content_type.split(";") if o.find("=") > -1}
             encoding = encoding["charset"] if "charset" in encoding else None
             html = decode_content(url,html, isgzip,encoding)
             break

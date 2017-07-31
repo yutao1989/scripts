@@ -13,11 +13,33 @@ import random
 nbs = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 colors = [[255, 255, 0], [255, 204, 0], [255, 153, 0], [255, 102, 0], [255, 51, 0], [204, 255, 0], [204, 204, 0], [204, 153, 0], [204, 102, 0], [204, 51, 0], [102, 255, 0], [102, 0, 0], [51, 0, 102], [154, 50, 205], [127, 255, 0], [122, 103, 238], [34, 139, 34], [0, 100, 0]]
 
-conf = [1.,1.2,1.3,1.3]
+conf = [1.3,1.2,1.3,1.3]
+
+rs = []
 
 def display(img):
     io.imshow(img)
     io.show()
+
+def modify(p2g,shape,color_result, bl=set(range(400))):
+    gc = {}
+    #bl = set(range(300))
+    #bl = set([12])
+    #p2g = p2g2
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            if (i,j) in p2g:
+                #color_result[i][j] = np.array(colors[p2g[(i,j)]%len(colors)]) 
+                grp = p2g[(i,j)]
+                if grp not in bl:
+                    continue
+                if grp not in gc:
+                    gc[grp] = random.randint(0,len(colors)-1)
+                color_result[i][j] = np.array(colors[gc[grp]])
+            for item in rs:
+                d = distance((i,j),item[0])
+                if d > .97*item[1] and d < 1.03*item[1]:
+                    color_result[i][j] = np.array([255,255,255])
 
 def split_image(grey_img):
     shape = grey_img.shape
@@ -31,16 +53,16 @@ def split_image(grey_img):
             if grey_img[i][j] == 255:
                 visit(grey_img,i,j,grp,p2g)
                 grp += 1
-    merge(grey_img,p2g)
-    gc = {}
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            if (i,j) in p2g:
-                #color_result[i][j] = np.array(colors[p2g[(i,j)]%len(colors)]) 
-                grp = p2g[(i,j)]
-                if grp not in gc:
-                    gc[grp] = random.randint(0,len(colors)-1)
-                color_result[i][j] = np.array(colors[gc[grp]])
+    p2g2 = p2g.copy()
+    g2p = merge(grey_img,p2g)
+    modify(p2g,shape,color_result)
+    for key in g2p.keys():
+        pts = g2p[key]
+        xs = [o[0] for o in pts]
+        ys = [o[1] for o in pts]
+        print(key,min(xs),min(ys),max(xs),max(ys))
+    #modify(p2g2,shape,color_result,set([150]))
+    
     return color_result
 
 def visit(img,x,y,g,mp):
@@ -78,11 +100,16 @@ def merge(grey_img,mp):
             continue
         n = find_neighbors(grey_img,g,g2p,mp)
         while n is not None:
-            print("----",g,n)
+            #if g in set([19,12]):
+            if g in set(range(400)):
+                print("----",g,n)
             merge_real(g,n,g2p,mp)
             merged.add(n)
             #n = find_neighbors(grey_img,g,g2p,mp)
             n = find_neighbors_by_mean(grey_img,g,g2p,mp)
+    for item in merged:
+        g2p.__delitem__(item)
+    return g2p
 
 def distance(p1,p2):
     return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
@@ -100,13 +127,23 @@ def judge(d,g1,g2, mp):
     m2,d2,mx2 = get_mean_std(mp[g2])
     m3,d3,mx3 = get_mean_std(mp[g1]+mp[g2])
     mean_dis = distance(m1,m2)
-    #if (d1*conf[2]+d2*conf[3]+d)/mean_dis >= conf[1]:
-    if d2 == 0:
-        print(mp[g2])
+    if mean_dis <= max(mx1,mx2)*1.1:
         return True
-    if d3/d2 < 1.2:
+    elif d3< max(d1,d2)*1.2:
         return True
     else:
+        md1 = distance(m1,m3)
+        md2 = distance(m2,m3)
+        '''
+        if md1 > md2:
+            if md2 < d2*.5:
+                return True
+        else:
+            if md1 < d1*.5:
+                return True
+        '''
+        if min(md1,md2) < min(d1,d2)*1.1 and max(mx1,mx2) > mx3*.8:
+            return True
         return False
 
 def find_neighbors_by_mean(grey_img,g,mp1,mp2):
@@ -125,11 +162,12 @@ def find_neighbors_by_mean(grey_img,g,mp1,mp2):
         s[2][item] = item
 
     while len(s[0]) > 0:
-        d = s[0].pop()
-        if d > mx*conf[0]:
-            break
+        d = s[0][0]
+        s[0].__delitem__(0)
         items = s[1][d]
         s[1].__delitem__(d)
+        if d > mx*conf[0]:
+            break
         for item in items:
             for nb in nbs:
                 nx = item[0] + nb[0]
@@ -152,6 +190,7 @@ def find_neighbors_by_mean(grey_img,g,mp1,mp2):
                     else:
                         s[1][l].append((nx,ny))
                         s[2][(nx,ny)] = s[2][item]
+    return None
 
 def find_neighbors(grey_img,g,mp1,mp2):
     s = ([],{},{})

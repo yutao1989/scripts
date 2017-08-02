@@ -6,10 +6,12 @@ import cv2
 from skimage import io
 
 if "__main__" == __name__:
-    img = io.imread("data/text2.jpg")
-    border = 3
+    img = io.imread("data/comic.jpg")
+    border = 0
     for line in open("r.txt"):
-        parts = [int(o) for o in line.strip().split(" ")]
+        parts = [int(o) for o in line.strip().split(" ") if o.isdigit()]
+        if len(parts) < 5:
+            continue
         #img = cv2.rectangle(img,(parts[1],parts[2]),(parts[3],parts[4]),[255,0,255])
         img = cv2.rectangle(img,(parts[2]-border,parts[1]-border),(parts[4]+border,parts[3]+border),[255,0,255])
     io.imsave("data/get.jpg",img)

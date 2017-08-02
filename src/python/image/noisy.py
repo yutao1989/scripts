@@ -8,6 +8,7 @@ import numpy as np
 import math
 import random
 import bisect
+import math
 
 nbs = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 colors = [[255, 255, 0], [255, 204, 0], [255, 153, 0], [255, 102, 0], [255, 51, 0], [204, 255, 0], [204, 204, 0], [204, 153, 0], [204, 102, 0], [204, 51, 0], [102, 255, 0], [102, 0, 0], [51, 0, 102], [154, 50, 205], [127, 255, 0], [122, 103, 238], [34, 139, 34], [0, 100, 0]]
@@ -180,29 +181,6 @@ def is_symmetry_and_middle(img,region):
     else:
         return False
 
-def find_by_start(img,region,ht):
-    shape = img.shape
-    '''
-    r = region
-    n = 0
-    score = 0
-    while r[1][1] < shape[1]:
-        s1 =
-        s2 =
-        score += (s1+s2) 
-        r = [(r[0][0],r[1][1]),(r[1][0],r[1][1]+ht)]
-    '''
-
-def find_size(img,region,ht):
-    shape = img.shape
-    lu = region[0]
-    while lu[1] + ht < shape[1]:
-        r2 = [lu,(region[1][0],lu[1]+ht)]
-        if is_symmetry_and_middle(img,r2):
-            print("1 "+" ".join([str(o2) for o1 in r2 for o2 in o1]))
-            pass
-        lu = (region[0][0],lu[1]+1)
-
 def cut_by_line_density(img):
     shape = img.shape
     size = distance(shape,(0,0))
@@ -213,7 +191,6 @@ def cut_by_line_density(img):
         ht = item[1]-item[0]
         if ht/size < .08: 
             continue
-        #find_size(img,[(item[0],0),(item[1],shape[1])],ht)
         for j in range(shape[1]):
             nmg[item[0]][j] = 255
             nmg[item[1]][j] = 255
@@ -288,6 +265,7 @@ def find_widest_rectangle(img):
             lines.append((l,shape[1]))
         threshold = .99
         lines2 = []
+        # find widest line
         for i1 in range(len(lines)):
             for i2 in range(i1+1,len(lines)):
                 ll = (lines[i2][1]-lines[i1][0])
@@ -297,8 +275,7 @@ def find_widest_rectangle(img):
             lines2.append(lines[i1])
         lines2.sort(key=lambda x:x[1]-x[0])
         mp[i] = lines2[-1]
-        #for jj in range(*lines2[-1]):
-        #    nmg[i][jj] = 255
+    # delete change great lines
     for i in range(1,shape[0]-1):
         l = mp[i-1] if i-1 in mp else (0,0)
         t = mp[i] if i in mp else (0,0)
@@ -314,9 +291,8 @@ def find_widest_rectangle(img):
         elif lo >= ppp[0] or no >= ppp[0]:
             isP = True
         if not isP:
-            #for jj in range(*mp[i]):
-            #    nmg[i][jj] = 255
             del mp[i]
+    # remove single or double lines
     i = 0
     while i < shape[0]-3:
         t1 = mp[i] if i in mp else (0,0)
@@ -337,17 +313,128 @@ def find_widest_rectangle(img):
         if i in mp:
             for jj in range(*mp[i]):
                 mp2[(i,jj)] = 1
-    aa = []
-    bb = {}
+                nmg[i][jj] = 0
+
+    v_mp = {}
+    recs = []
     for i in range(shape[0]):
         for j in range(shape[1]):
+            if (i,j) in v_mp:
+                continue
             if (i,j) not in mp2:
-                print((i,j))
-                get_maximum(img,(i,j),mp2,aa,bb)
-    print(aa)
-        
-    return nmg
+                u = i
+                while u >= 0 and (u,j) not in mp2:
+                    u -= 1
+                    v_mp[(u,j)] = 1
+                u = min(i,u+1)
+                d = i
+                while d < shape[0] and (d,j) not in mp2:
+                    d += 1
+                    v_mp[(d,j)] = 1
+                jj = j+1
+                while jj < shape[1]:
+                    ccs = [(ii,jj) not in mp2 for ii in range(u,d)]
+                    if all(ccs) and (u==0 or (u-1,jj) in mp2) and (d==shape[0] or (d,jj) in mp2):
+                        for ii in range(u,d):
+                            v_mp[(ii,jj)] = 1
+                    else:
+                        break
+                    jj += 1
+                d1 = min(shape[1],jj)
+                jj = j-1
+                while jj >=0:
+                    ccs = [(ii,jj) not in mp2 for ii in range(u,d)]
+                    if all(ccs) and (u==0 or (u-1,jj) in mp2) and (d==shape[0] or (d,jj) in mp2):
+                        for ii in range(u,d):
+                            v_mp[(ii,jj)] = 1
+                    else:
+                        break
+                    jj -= 1
+                u1 = max(jj,0)
+                recs.append([(u,u1),(d,d1)])
+    recs.sort(key=lambda o:(o[0][0]-o[1][0])*(o[0][1]-o[1][1]))
+    return (nmg,recs[-10:])
 
+def display_region(img,regions):
+    for r in regions:
+        for i in range(r[0][0],r[1][0]):
+            for j in range(r[0][1],r[1][1]):
+                img[i][j] = 255
+
+def find_best_width(img,j,r,ht,scores):
+    shape = img.shape
+    rx = range(r[0][0],r[1][0])
+    ry = range(r[0][1],r[1][1])
+    dlt = math.ceil(ht*.05)
+    l = j
+    ns_mp = {}
+    for jj in range(max(j-dlt,0),min(j+dlt,shape[1])):
+        for size in range(ht-dlt,ht+dlt):
+            nj = jj
+            score = 0
+            while nj < shape[1]:
+                if not is_symmetry_and_middle(img,[(r[0][0],nj-size),(r[1][0],nj)]):
+                    break
+                if nj not in ns_mp:
+                    ns_mp[nj] = sum([1 for ii in rx if img[ii][nj]==255])
+                score += ns_mp[nj]
+                nj += size
+            end = max(nj-size,jj)
+            nj = jj - size
+            while nj >= 0:
+                if not is_symmetry_and_middle(img,[(r[0][0],nj),(r[1][0],nj+size)]):
+                    break
+                if nj not in ns_mp:
+                    ns_mp[nj] = sum([1 for ii in rx if img[ii][nj]==255])
+                score += ns_mp[nj]
+                nj -= size
+            print(jj,size)
+            start = min(nj+size,jj)
+            scores.append((score/max(1,(end-start)/size),(start,end,size)))
+
+def find_region_text(img,regions):
+    dist =  calc_neighbors(img)
+    shape = img.shape
+    for r in regions:
+        ht = r[1][0]-r[0][0]
+        rx = range(r[0][0],r[1][0])
+        ry = range(r[0][1],r[1][1])
+        hls = []
+        ll1 = []
+        flt = set()
+        for i in rx:
+            for j in range(0,shape[1]):
+                if j not in flt:
+                    bisect.insort(ll1,j)
+                    flt.add(j)
+        '''
+        #for j in ry:
+        for j in range(160,shape[1]):
+            xx = None
+            if j < shape[1]-1:
+                #xx = [i for i in rx if img[i][j] if img[i][j]==255 and img[i][j+1]==255]
+                xx = [i for i in rx if img[i][j] if img[i][j]==255 or img[i][j+1]==255]
+            else:
+                xx = [i for i in rx if img[i][j] if img[i][j]==255]
+            s = len(xx) + np.std(xx)
+            hls.append((s,j))
+        hls.sort(key=lambda o:o[0])
+        hht = int(ht/2)
+        hht = 10
+        for o in hls[:hht]:
+            for ii in rx:
+                img[ii][o[1]] = 255
+        result = []
+        for o in hls[:hht]:
+            find_best_width(img,o[1],r,ht,result)
+        result.sort(key=lambda o:o[0])
+        ri = result[0][1]
+        start = ri[0]
+        while start <= ri[1]:
+            for ii in rx:
+                img[ii][start] = 255
+            start += ri[2]
+        '''
 
 def resize(img):
     shape = img.shape
@@ -359,21 +446,28 @@ def resize(img):
         big[i*2+1] = big[i*2].copy()
     return big
 
+def convert_to_unit8(img):
+    shape = img.shape
+    nmg = np.ndarray(shape,"uint8")
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            nmg[i][j] = img[i][j]
+    return nmg
+
 if "__main__" == __name__:
-    '''
-    path = sys.argv[1]
-    img = io.imread(path)
-    img = resize(img)
-    result = Canny.performEdgeDetection(img)
-    io.imsave("data/tmp.png",result)
-    '''
-    img = io.imread("data/tmp.png")
+    img = None
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+        img = io.imread(path)
+        img = resize(img)
+        img = Canny.performEdgeDetection(img)
+        img = convert_to_unit8(img)
+        io.imsave("data/tmp.png",img)
+    else:
+        img = io.imread("data/tmp.png")
     dist =  calc_neighbors(img)
     img = remove_point(dist,img)
-    #img = cut_by_line_density(img)
-    img = find_widest_rectangle(img)
+    (img,regions) = find_widest_rectangle(img)
+    #display_region(img,regions)
+    find_region_text(img,regions)
     io.imsave("data/result.jpg",img)
-    sys.exit(0)
-    color_result = split_image(img)
-    io.imsave("data/result.jpg",color_result)
-    #display(color_result)

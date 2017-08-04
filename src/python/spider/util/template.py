@@ -5,7 +5,7 @@ from lxml import etree
 import math
 import re
 
-def get_jpath(obj, lst):
+def get_jpath(obj, lst, default=None):
     tmp = obj
     if lst[0] == "func":
         return lst[1](obj)
@@ -14,14 +14,14 @@ def get_jpath(obj, lst):
             if isinstance(tmp,dict) and item in tmp:
                 tmp = tmp[item]
             else:
-                return None
+                return default
         elif isinstance(item,int):
             if isinstance(tmp,list) and item >= 0 and item < len(tmp):
                 tmp = tmp[item]
             else:
-                return None
+                return default
         else:
-            return None
+            return default
     return tmp
 
 def get_path(node):

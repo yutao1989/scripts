@@ -130,7 +130,7 @@ def get_page(status):
     code = ''
     retry = 4
     url = status["url"]
-    method = "GET" if "method" not in status else status["method"]
+    method = "GET" if "method" not in status else status["method"].upper()
     headers = merge(Headers,status["headers"]) if "headers" in status else Headers
     data = status["data"] if "data" in status else None
     if data is not None:
@@ -170,7 +170,7 @@ def get_page(status):
                     continue
                 elif code[0] in set(["4","5"]):
                     log_msg('%s\t%s\t%s\t%s' % (time.ctime(),url, code ,"" if data is None else str(data)))
-                    return (url,None)
+                    return (url,"")
             retry -= 1
             if retry > 0:
                 log_msg(('%s\t%s\t%s\t%s\t%s' % (time.ctime(), url, code, str(e), "recovery")),"error")

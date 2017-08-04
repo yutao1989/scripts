@@ -7,7 +7,8 @@ from .util import (
 from .template import (
     parse,
     path_detect,
-    node_filter
+    node_filter,
+    get_jpath
 )
 
 from .bloomfilter import (
@@ -21,5 +22,6 @@ __all__ = [
     path_detect,
     node_filter,
     bloomfilter,
-    get_page
+    get_page,
+    get_jpath
 ]

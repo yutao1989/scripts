@@ -1,6 +1,8 @@
 #! /usr/bin/python3
 
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import sys
 import warnings
 from scipy import signal
@@ -13,6 +15,11 @@ from Constants import *
 #x_length = len(img[0])
 x_length = None
 y_length = None
+
+#Basic Util functions
+def display(array):
+    plt.imshow(array, cmap = plt.get_cmap('gray'))
+    plt.show()
 
 def sign(x):
     if x > 0:

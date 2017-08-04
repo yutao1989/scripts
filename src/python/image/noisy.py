@@ -11,6 +11,7 @@ import bisect
 import math
 
 nbs = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+nbs2 = [(-1, 0), (0, -1), (0, 1), (1, 0)]
 colors = [[255, 255, 0], [255, 204, 0], [255, 153, 0], [255, 102, 0], [255, 51, 0], [204, 255, 0], [204, 204, 0], [204, 153, 0], [204, 102, 0], [204, 51, 0], [102, 255, 0], [102, 0, 0], [51, 0, 102], [154, 50, 205], [127, 255, 0], [122, 103, 238], [34, 139, 34], [0, 100, 0]]
 
 conf = [1.3,1.2,1.3,1.3]
@@ -176,7 +177,7 @@ def is_symmetry_and_middle(img,region):
     std = np.mean([distance(o,m_p) for o in pts])
     md_m_d = distance(m_p,md_p)
     size = distance(shape,(0,0))
-    if md_m_d/size < .1 and std/size > .25:
+    if md_m_d/size < .07 and std/size >= .15:
         return True
     else:
         return False
@@ -361,6 +362,15 @@ def display_region(img,regions):
             for j in range(r[0][1],r[1][1]):
                 img[i][j] = 255
 
+def display_region2(img,regions):
+    for r in regions:
+        for i in range(r[0][0],r[1][0]):
+            img[i][r[0][1]] = 255
+            img[i][r[1][1]] = 255
+        for j in range(r[0][1],r[1][1]):
+            img[r[0][0]][j] = 255
+            img[r[1][0]][j] = 255
+
 def find_best_width(img,j,r,ht,scores):
     shape = img.shape
     rx = range(r[0][0],r[1][0])
@@ -392,49 +402,98 @@ def find_best_width(img,j,r,ht,scores):
             start = min(nj+size,jj)
             scores.append((score/max(1,(end-start)/size),(start,end,size)))
 
+def in_bound(p,r):
+    x,y = p
+    if isinstance(r,tuple):
+        r = [(0,0),r]
+    if x >= r[0][0] and x < r[1][0] and y >=r[0][1] and y < r[1][1]:
+        return True
+    else:
+        return False
+
+def find_difference(a1,a2):
+    low_width_region = [(a2[i],a2[i+1]) for i in range(len(a2)-1) if a2[i+1]-a2[i] in set([2,3])]
+    for o in a2:
+        pass
+
+def is_ss(tmp):
+    v = tmp[2][1]
+    idx = tmp[2][0]
+    tmp.sort(key=lambda o:o[1])
+    result = False
+    if v == tmp[-1][1]:
+        mn = len([1 for o in tmp if o[1]==v])
+        if mn == 1:
+            result = True
+        elif mn == 2:
+            result = abs(tmp[-1][0]-idx+tmp[-2][0]-idx) == 1
+        elif mn == 3:
+            result = (tmp[0][0] < idx and tmp[1][0] < idx) and (tmp[0][0] > idx and tmp[1][0] > idx)
+    return result
+
+def find_maximum(img,r,direction=1,method="dis"):
+    shape = img.shape
+    hls = []
+    for j in range(0,shape[1]):
+        v = 0
+        if method == "dis":
+            if direction==1:
+                ii = r[0][0]
+                v = 0
+                while ii < r[1][0] and img[ii][j] == 0:
+                    v += 1
+                    ii += 1
+            else:
+                ii = r[1][0]
+                v = 0
+                while ii >= r[0][0] and img[ii][j] == 0:
+                    v += 1
+                    ii -= 1
+        else:
+            v = len([1 for o in range(r[0][0],r[1][0]) if img[o][j]==0])
+        hls.append((j,v))
+    return hls
+
+def find_maximum2(img,r,sqs,result):
+    shape = img.shape
+    uv = set(sqs)
+    ht = r[1][0]-r[0][0]
+    rx = range(r[0][0],r[1][0])
+    dlt = int(ht*.2)
+    dst = [len([1 for i in rx if img[i][j]==255]) for j in range(0,shape[1])]
+    length = len(sqs)
+    for i1 in range(length-1):
+        for i2 in range(i1+1,length):
+            width = sqs[i2]-sqs[i1]
+            if width >= ht-dlt and width <= ht+dlt:
+                if is_symmetry_and_middle(img,[(r[0][0],sqs[i1]),(r[1][0],sqs[i2])]):
+                    result.append([(r[0][0],sqs[i1]),(r[1][0],sqs[i2])])
+
+def find_maximum3(img,r,result):
+    pass
+
 def find_region_text(img,regions):
     dist =  calc_neighbors(img)
     shape = img.shape
+    result = []
     for r in regions:
         ht = r[1][0]-r[0][0]
         rx = range(r[0][0],r[1][0])
         ry = range(r[0][1],r[1][1])
-        hls = []
-        ll1 = []
-        flt = set()
-        for i in rx:
-            for j in range(0,shape[1]):
-                if j not in flt:
-                    bisect.insort(ll1,j)
-                    flt.add(j)
-        '''
-        #for j in ry:
-        for j in range(160,shape[1]):
-            xx = None
-            if j < shape[1]-1:
-                #xx = [i for i in rx if img[i][j] if img[i][j]==255 and img[i][j+1]==255]
-                xx = [i for i in rx if img[i][j] if img[i][j]==255 or img[i][j+1]==255]
-            else:
-                xx = [i for i in rx if img[i][j] if img[i][j]==255]
-            s = len(xx) + np.std(xx)
-            hls.append((s,j))
-        hls.sort(key=lambda o:o[0])
-        hht = int(ht/2)
-        hht = 10
-        for o in hls[:hht]:
-            for ii in rx:
-                img[ii][o[1]] = 255
-        result = []
-        for o in hls[:hht]:
-            find_best_width(img,o[1],r,ht,result)
-        result.sort(key=lambda o:o[0])
-        ri = result[0][1]
-        start = ri[0]
-        while start <= ri[1]:
-            for ii in rx:
-                img[ii][start] = 255
-            start += ri[2]
-        '''
+        hls = find_maximum(img,r,0)
+        hls2 = find_maximum(img,r,1)
+        hls = [o[0]+o[1] for o in zip(hls,hls2)]
+        #hls = find_maximum(img,r,0,"")
+        sps = []
+        for j in range(2,shape[1]-2):
+            tmp = hls[j-2:j+3]
+            if is_ss(tmp):
+                sps.append(j)
+        find_maximum2(img,r, sps, result)
+    #print(len([o for o in result if o[0][0]==189 and o[1][0]==269]))
+    #display_region2(img,result)
+    display_region2(img,[o for o in result if o[0][0]==189 and o[1][0]==269])
+        
 
 def resize(img):
     shape = img.shape
@@ -456,15 +515,19 @@ def convert_to_unit8(img):
 
 if "__main__" == __name__:
     img = None
+    #ori = None
     if len(sys.argv) > 1:
         path = sys.argv[1]
         img = io.imread(path)
         img = resize(img)
+        #ori = img
+        #io.imsave("data/resize.png",ori)
         img = Canny.performEdgeDetection(img)
         img = convert_to_unit8(img)
         io.imsave("data/tmp.png",img)
     else:
         img = io.imread("data/tmp.png")
+        #ori = io.imread("data/resize.png")
     dist =  calc_neighbors(img)
     img = remove_point(dist,img)
     (img,regions) = find_widest_rectangle(img)

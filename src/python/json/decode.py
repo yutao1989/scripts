@@ -61,6 +61,9 @@ def parse_string(v,idx,force=False):
             if tmp in bool_set:
                 value = bool(tmp)
                 tp = True
+            elif tmp == "null":
+                value = None
+                tp = True
             else:
                 tp = False
         if force:
@@ -81,63 +84,58 @@ def parse(v):
     idx = 0
     result = []
     while idx < len(v):
-        if (not is_strict and len(q)==0 and v[idx] not in obj_s) or v[idx] in blanks:
-            idx += 1
-            continue
-        if v[idx] in obj_s:
-            q.append((v[idx],list() if v[idx]=="[" else dict()))
-        elif v[idx] in obj_e:
-            if fake_assert(q, (v[idx]=="]" and q[-1][0] == "[") or (v[idx]=="}" and q[-1][0] == "{")):
-                idx+= 1
+        try:
+            if (not is_strict and len(q)==0 and v[idx] not in obj_s) or v[idx] in blanks:
+                idx += 1
                 continue
-            item = q.pop()
-            if len(q) == 0:
-                result.append(item[1])
-                continue
-            else:
+            if v[idx] in obj_s:
+                q.append((v[idx],list() if v[idx]=="[" else dict()))
+            elif v[idx] in obj_e:
+                assert (v[idx]=="]" and q[-1][0] == "[") or (v[idx]=="}" and q[-1][0] == "{")
+                item = q.pop()
+                if len(q) == 0:
+                    result.append(item[1])
+                    idx += 1
+                    continue
+                else:
+                    if q[-1][0] in set([":",","]):
+                        q.pop()
+                    else:
+                        assert q[-1][0]=="[" and len(q[-1][1])==0
+                    if q[-1][0] == "[":
+                        q[-1][1].append(item[1])
+                    elif q[-1][0] == "{":
+                        update_mp(q[-1][1],item[1],True)
+                    else:
+                        raise Exception("could not be here,something must be wrong")
+            elif v[idx] in textc or v[idx] in alpha_cs:
+                idx, value,tp = parse_string(v,idx,is_strict)
+                assert len(q)>0
+                r = 0
                 if q[-1][0] in set([":",","]):
+                    r = 1 if q[-1][0]==":" else 2
                     q.pop()
                 else:
-                    if fake_assert(q, q[-1][0]=="[" and len(q[-1][1])==0):
-                        idx+=1
-                        continue
+                    assert q[-1][0] in obj_s and len(q[-1][1])==0
                 if q[-1][0] == "[":
-                    q[-1][1].append(item[1])
+                    q[-1][1].append(value)
                 elif q[-1][0] == "{":
-                    update_mp(q[-1][1],item[1],True)
+                    update_mp(q[-1][1],value,tp if tp is not None else (True if r==1 else False))
                 else:
                     raise Exception("could not be here,something must be wrong")
-        elif v[idx] in textc or v[idx] in alpha_cs:
-            idx, value,tp = parse_string(v,idx,is_strict)
-            if fake_assert(q, len(q)>0):
-                idx+=1
-                continue
-            r = 0
-            if q[-1][0] in set([":",","]):
-                r = 1 if q[-1][0]==":" else 2
-                q.pop()
-            else:
-                if fake_assert(q, q[-1][0] in obj_s and len(q[-1][1])==0):
-                    idx+=1
-                    continue
-            if q[-1][0] == "[":
-                q[-1][1].append(value)
-            elif q[-1][0] == "{":
-                update_mp(q[-1][1],value,tp if tp is not None else (True if r==1 else False))
+            elif v[idx] == ":":
+                assert len(q)>0 and q[-1][0]=="{" and "___" in q[-1][1]
+                q.append((":",None))
+            elif v[idx] == ",":
+                assert len(q)>0 and q[-1][0] in obj_s and len(q[-1][1])>0 and (q[-1][0]=="[" or "___" not in q[-1][1])
+                q.append((",",None))
             else:
                 raise Exception("could not be here,something must be wrong")
-        elif v[idx] == ":":
-            if fake_assert(q, len(q)>0 and q[-1][0]=="{" and "___" in q[-1][1]):
-                idx+=1
-                continue
-            q.append((":",None))
-        elif v[idx] == ",":
-            if fake_assert(q, len(q)>0 and q[-1][0] in obj_s and len(q[-1][1])>0 and (q[-1][0]=="[" or "___" not in q[-1][1])):
-                idx+=1
-                continue
-            q.append((",",None))
-        else:
-            raise Exception("could not be here,something must be wrong")
+        except Exception:
+            if is_strict:
+                raise Exception()
+            else:
+                del q[:]
         idx += 1
     assert len(q) == 0
     return result
@@ -145,4 +143,9 @@ def parse(v):
 
 if "__main__" == __name__:
     tmp = '{}{"page_type":"1",a:[],"user_id":5379806062,"max_behot_time":0,"count":20,"as":"A1E51958393A1EA","cp":"5989DA615EAACE1","a":1}'
-    print(parse(tmp))
+    html = open("/home/yutao/job/spring/spring3/new_spider/data/user.html").read()
+    from lxml import etree
+    tree = etree.HTML(html)
+    scripts = [o for o in tree.xpath("//script/text()")]
+    for s in scripts:
+        print(parse(s))

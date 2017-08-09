@@ -8,7 +8,7 @@ obj_e = set(["]","}"])
 alpha_cs = set([chr(o) for o in range(ord("a"),ord("a")+26)]+[chr(o) for o in range(ord("A"),ord("A")+26)]+[chr(o) for o in range(ord("0"),ord("0")+10)]+["_","."])
 bool_set = set(["true","false"])
 
-is_strict = True
+is_strict = False
 
 def update_mp(mp,value,fv=False):
     if fv:
@@ -63,6 +63,8 @@ def parse_string(v,idx,force=False):
                 tp = True
             else:
                 tp = False
+        if force:
+            assert not tp
         return idx-1,value,tp
 
 def fake_assert(q,condition):
@@ -79,7 +81,7 @@ def parse(v):
     idx = 0
     result = []
     while idx < len(v):
-        if (len(q)==0 and v[idx] not obj_s) or v[idx] in blanks:
+        if (not is_strict and len(q)==0 and v[idx] not in obj_s) or v[idx] in blanks:
             idx += 1
             continue
         if v[idx] in obj_s:
@@ -91,7 +93,7 @@ def parse(v):
             item = q.pop()
             if len(q) == 0:
                 result.append(item[1])
-                break
+                continue
             else:
                 if q[-1][0] in set([":",","]):
                     q.pop()
@@ -106,7 +108,7 @@ def parse(v):
                 else:
                     raise Exception("could not be here,something must be wrong")
         elif v[idx] in textc or v[idx] in alpha_cs:
-            idx, value,tp = parse_string(v,idx)
+            idx, value,tp = parse_string(v,idx,is_strict)
             if fake_assert(q, len(q)>0):
                 idx+=1
                 continue
@@ -142,5 +144,5 @@ def parse(v):
 
 
 if "__main__" == __name__:
-    tmp = '{"page_type":"1",a:[],"user_id":5379806062,"max_behot_time":0,"count":20,"as":"A1E51958393A1EA","cp":"5989DA615EAACE1","a":a}'
+    tmp = '{}{"page_type":"1",a:[],"user_id":5379806062,"max_behot_time":0,"count":20,"as":"A1E51958393A1EA","cp":"5989DA615EAACE1","a":1}'
     print(parse(tmp))

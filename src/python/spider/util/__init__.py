@@ -1,7 +1,9 @@
 from .util import (
     manage,
     schedule,
-    get_page
+    get_page,
+    parse_url,
+    log_msg
 )
 
 from .template import (
@@ -23,5 +25,7 @@ __all__ = [
     node_filter,
     bloomfilter,
     get_page,
-    get_jpath
+    get_jpath,
+    parse_url,
+    log_msg
 ]

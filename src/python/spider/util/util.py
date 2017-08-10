@@ -148,6 +148,8 @@ def get_page(status):
             log_msg('%s\t%s\t%s' % (url, code ,"" if data is None else str(data)))
             assert code[0] == "2"
             html = response.read()
+            if "isPic" in status:
+                break
             isgzip = True if get_header_ignore_case(response.headers,"Content-Encoding") == "gzip" else False
             content_type = get_header_ignore_case(response.headers,"Content-Type")
             encoding = {o.split(":")[0].strip():o.split(":")[1].strip() for o in content_type.split(";") if o.find(":") > -1}
@@ -158,10 +160,11 @@ def get_page(status):
             break
         except Exception:
             tp, e,trace = sys.exc_info()
-            print(e)
+            log_msg("util.get_page exception:"+str(e))
             if hasattr(e, "getcode") and retry > 0:
                 code = str(e.getcode())
-                #print(code,e.geturl())
+                '''
+                print(code,e.geturl())
                 if code[0] == "3":
                     html = e.geturl()
                     headers["referer"] = url
@@ -169,10 +172,12 @@ def get_page(status):
                     retry -= 1
                     continue
                 elif code[0] in set(["4","5"]):
+                '''
+                if code[0] in set(["4","5"]):
                     log_msg('%s\t%s\t%s\t%s' % (time.ctime(),url, code ,"" if data is None else str(data)))
                     return (url,"")
             retry -= 1
-            if retry > 0:
+            if retry <= 0:
                 log_msg(('%s\t%s\t%s\t%s\t%s' % (time.ctime(), url, code, str(e), "recovery")),"error")
                 log_msg('\t'.join(traceback.format_stack()),"error")
                 break

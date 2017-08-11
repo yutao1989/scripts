@@ -104,7 +104,7 @@ def get_user_info(u,fp):
         params["user_id"] = uid
         path = "/c/user/article/"
         nurl = "%s//%s%s" % (p,h,path)
-        count = 1
+        count = 3
         while True:
             url,html = util.get_page({"url":nurl,"data":params,"method":"post"})
             if html is None or len(html) == 0:
@@ -116,9 +116,18 @@ def get_user_info(u,fp):
                     util.log_msg("no data from response.url:%s" % nurl)
                 result = []
                 for item in mp["data"]:
-                    get_article(util.parse_url(url,item["source_url"]),url,item,fp,result)
+                    turl = util.parse_url(url,item["source_url"])
+                    try:
+                        get_article(turl,url,item,fp,result)
+                    except Exception:
+                        tp, e,trace = sys.exc_info()
+                        util.log_msg("get article(url:%s) info error:%s" % (turl,str(e)))
                 if len(result) > 0:
-                    insert_into_db(result)
+                    if fp is None:
+                        insert_into_db(result)
+                    else:
+                        for item in result:
+                            fp.write("[%s]\t%s\t%s\n" % (time.ctime(),u,json.dumps(item)))
             else:
                 util.log_msg("no data in content.url:%s" % nurl)
             if mp["has_more"]:
@@ -134,7 +143,7 @@ def get_user_info(u,fp):
             if count <= 0:
                 break
     else:
-        util.log_msg("could parse data from html file,need to check this out.url:%s,referer:%s." % (ourl,referer))
+        util.log_msg("could not parse data from html file,need to check this out.url:%s,referer:%s." % (ourl,referer))
 
 def insert_into_db(mps):
     columns = ['id', 'title', 'source', 'a_type', 'username', 'description', 'content', 'source_url', 'publish_time', 'category', 'tags', 'cover', 'images', 'views', 'comments']
@@ -192,17 +201,20 @@ def get_article(url,referer,data,fp,result2):
             if len(result) > 0:
                 result2.append(result)
         else:
-            util.log_msg("could parse content from html file,need to check this out.url:%s,referer:%s." % (url,referer))
+            util.log_msg("could not parse content from html file,need to check this out.url:%s,referer:%s." % (url,referer))
     else:
-        util.log_msg("could parse data from html file,need to check this out.url:%s,referer:%s." % (url,referer))
+        util.log_msg("could not parse data from html file,need to check this out.url:%s,referer:%s." % (url,referer))
 
 def cb(fp):
     #url = "http://www.toutiao.com/"
     #util.get_page({"url":url})
-    ids = ["3217488391","3490514559","6952025338","53052328075","62410217001","17742356838","3667603068","6617382708","6474480676","6126424045","6237062541","6613263338","5721425462","3230889860","5460434242","4588938236","4023651976","6675755348","51848596518","3794154752","5766840891","6939911288","53197227173","52231019020","1439117339","3655831911","5963433422","3345437222","3655626426","5963433422","5935444546","6095787239","63826714033","3669967641","4664335991","6960911767","6065077466","5458114046","2921675805","4309017746","3788331986","4143177716","5826315429","52171354099","5446353935","52497881665","3961411576","6303762356","5543282403","3808046799","50099999999"]
+    #ids = ["3217488391","3490514559","6952025338","53052328075","62410217001","17742356838","3667603068","6617382708","6474480676","6126424045","6237062541","6613263338","5721425462","3230889860","5460434242","4588938236","4023651976","6675755348","51848596518","3794154752","5766840891","6939911288","53197227173","52231019020","1439117339","3655831911","5963433422",
+    #ids = ["3345437222","3655626426","5963433422","5935444546","6095787239","63826714033","3669967641","4664335991","6960911767","6065077466","5458114046","2921675805","4309017746","3788331986","4143177716","5826315429","52171354099","5446353935","52497881665","3961411576","6303762356","5543282403","3808046799","50099999999"]
+    ids = ["3909766048"]
     for uid in ids:
         get_user_info(uid,fp)
 
 if "__main__" == __name__:
     fp = open("data/result.txt","a")
-    util.manage(cb,(fp,))
+    #util.manage(cb,(fp,))
+    util.manage(cb,(None,))

@@ -44,7 +44,7 @@ def fill_detail(key,source,target):
             skey = field_info[1]
             tkey = field_info[0]
             if skey in source:
-                if type(source[skey]) == type({}) and "future" in source[skey]:
+                if isinstance(source[skey],dict) and "future" in source[skey]:
                     raise Exception("recursively get value is not supported yet,will consider about that.")
                 else:
                     if "value" in target[tkey]:
@@ -64,7 +64,7 @@ def get_context(lst):
     for item in lst:
         mp = {}
         for key in item[2].keys():
-            if type(item[2][key]) == type({}) and "future" in item[2][key]:
+            if isinstance(item[2][key],dict) and "future" in item[2][key]:
                 keys = item[2][key]["key"]
                 if keys[0] not in mp:
                     mp[keys[0]] = [(key, keys[1])]
@@ -91,12 +91,12 @@ def get_context(lst):
         if "__keys" in item[2]:
             del item[2]["__keys"]
         for key in item[2].keys():
-            if type(item[2][key]) == type({}) and "future" in item[2][key]:
+            if isinstance(item[2][key],dict) and "future" in item[2][key]:
                 if "value" in item[2][key]:
                     item[2][key] = item[2][key]["value"]
                 else:
                     del item[2][key]
-            if type(item[2][key]) == type([]) and len(item[2][key]) == 1:
+            if isinstance(item[2][key],list) and len(item[2][key]) == 1:
                 item[2][key] = item[2][key][0]
 
 def get_data(key,conf,node,ctx,result):

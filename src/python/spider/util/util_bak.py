@@ -10,7 +10,6 @@ import sys
 from lxml import etree
 import json
 import os
-import logging
 from .template import parse as tparse
 from .bloomfilter import bloomfilter
 
@@ -20,6 +19,7 @@ Headers = {
     "User-Agent":"Mozilla/5.0 (X11; Fedora; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36",
     }
 cj = None
+logger = None
 bf = None
 fname = "data/.cookie"
 
@@ -39,20 +39,49 @@ def parse_url(surl, target, base=None):
         else:
             return '/'.join(surl.split('/')[:-1])+'/'+target
 
+'''
+class log:
+    def __init__(self, info_file=None, error_file=None):
+        self.info_stream = open(info_file, 'a') if info_file is not None else sys.stdout
+        self.error_stream = self.info_stream if info_file == error_file else (open(error_file, 'a') if error_file is not None else sys.stderr)
+        self.count1 = 0
+        self.count2 = 0
+
+    def push(self, stream, msg, tp):
+        #stream.write(('%s\t[%s]\t%s\n' % (tp, time.ctime(), msg)).encode('utf-8'))
+        stream.write('%s\t[%s]\t%s\n' % (tp, time.ctime(), msg))
+
+    def log_info(self, msg, tp='info'):
+        self.push(self.info_stream, msg, tp)
+        self.count1 = self.count1 + 1
+        if self.count1 > 10:
+            self.info_stream.flush()
+            self.count1 = 0
+
+    def log_error(self, msg, tp='error'):
+        self.push(self.error_stream, msg, tp)
+        self.count2 = self.count2 + 1
+        if self.count2 > 10:
+            self.error_stream.flush()
+            self.count2 = 0
+
+    def close(self):
+        self.info_stream.close()
+        self.error_stream.close()
+'''
+
 def log_msg(msg,tp="info"):
+    global logger
+    if logger is None:
+        logger = log("log/log.txt","log/err.txt") if os.path.exists("log") else log()
     if tp == "info":
-        logging.info(msg)
+        logger.log_info(msg)
     elif tp == "error":
-        logging.error(msg)
+        logger.log_error(msg)
 
 def init():
     socket.setdefaulttimeout(5)
     global cj,bf,fname
-    logging.basicConfig(level=logging.DEBUG,
-        format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-        datefmt='%a, %d %b %Y %H:%M:%S',
-        filename='./data/p.log',
-        filemode='a')
     bf = bloomfilter()
     cj = cookiejar.LWPCookieJar()
     if fname is not None and os.path.exists(fname):
@@ -62,9 +91,11 @@ def init():
     request.install_opener(opener)
 
 def close():
-    global cj,bf,fname
+    global cj,logger,bf,fname
     if cj is not None and isinstance(cj,cookiejar.LWPCookieJar):
         cj.save(fname)
+    if logger is not None:
+        logger.close()
     if bf is not None:
         bf.close()
 
@@ -141,6 +172,16 @@ def get_page(status):
             log_msg("util.get_page exception:"+str(e))
             if hasattr(e, "getcode") and retry > 0:
                 code = str(e.getcode())
+                '''
+                print(code,e.geturl())
+                if code[0] == "3":
+                    html = e.geturl()
+                    headers["referer"] = url
+                    url = e.geturl()
+                    retry -= 1
+                    continue
+                elif code[0] in set(["4","5"]):
+                '''
                 if code[0] in set(["4","5"]):
                     log_msg('%s\t%s\t%s\t%s' % (time.ctime(),url, code ,"" if data is None else str(data)))
                     return (url,"")

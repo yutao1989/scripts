@@ -3,7 +3,8 @@ from .util import (
     schedule,
     get_page,
     parse_url,
-    log_msg
+    log_msg,
+    exists
 )
 
 from .template import (
@@ -27,5 +28,6 @@ __all__ = [
     get_page,
     get_jpath,
     parse_url,
-    log_msg
+    log_msg,
+    exists
 ]

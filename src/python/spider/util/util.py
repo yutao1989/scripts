@@ -89,10 +89,10 @@ def decode_content(url,html,isgzip=False,encoding=None):
             html = html.decode(result['encoding'], 'ignore')
     return html
 
-def merge(mp1,mp2):
+def merge(mp1,mp2,black_list=set(["force"])):
     copy_mp = mp2.copy()
     for key in mp1.keys():
-        if key not in copy_mp:
+        if key not in copy_mp and key not in black_list:
             copy_mp[key] = mp1[key]
     return copy_mp
 
@@ -160,7 +160,8 @@ def schedule(seeds,conf,data_fp):
         q.append(seed)
     while len(q) > 0:
         item = q.pop()
-        if bf.exists(item["url"]):
+        print(item)
+        if "force" not in item and bf.exists(item["url"]):
             continue
         url_parts = item["url"].split("&")[0].strip("/").split("/")
         host = url_parts[2]
@@ -180,6 +181,7 @@ def schedule(seeds,conf,data_fp):
                     for url_entry in urls:
                         url_entry["referer"] = nurl
                         if "url" in url_entry:
+                            url_entry = merge(item,url_entry)
                             if not url_entry["url"].startswith("http"):
                                 turl = parse_url(nurl,url_entry["url"])
                                 if turl is not None:

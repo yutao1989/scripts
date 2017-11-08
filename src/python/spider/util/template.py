@@ -70,6 +70,10 @@ def get_context(lst):
                     mp[keys[0]] = [(key, keys[1])]
                 else:
                     mp[keys[0]].append((key, keys[1]))
+            elif item[2][key] is None or (hasattr(item[2][key],"__len__") and item[2][key].__len__()==0) or (isinstance(item[2][key],str) and item[2][key].strip()==""):
+                item[2].__delitem__(key)
+            elif isinstance(item[2][key],list) and len(item[2][key])==1:
+                item[2][key] = item[2][key][0]
         if len(mp) > 0:
             item[2]["__keys"] = mp
         paths.append((get_path(item[1]),item[0],item[2]))
@@ -104,6 +108,8 @@ def get_data(key,conf,node,ctx,result):
         snodes = node.xpath(conf[1])
         if len(snodes) > 0:
             result[key] = [o.strip() for o in snodes]
+    elif conf[0] == "xpath_lambda":
+        result[key] = [o1 for o in node.xpath(conf[1]) for o1 in [conf[2](o1,ctx)] if o1 is not None and (not hasattr(o1,"__len__") or o1.__len__()>0)]
     elif conf[0] == "mxpath":
         lst = []
         length = -1
@@ -155,9 +161,13 @@ def parse(html,config, entrance):
     url = []
     for item in result:
         if len(config[item[0]]) > 2:
-            config[item[0]][2](item[0],item[2],data,url)
+            d,u = config[item[0]][2](item[0],item[2])
+            for o in d:
+                data.append((item[0],o))
+            for o in u:
+                url.append(o)
         else:
-            default_add_to_data(item[0],item[2],data,url)
+            data.append((item[0],item[2]))
     return data,url
 
 def path_detect(path_patern):

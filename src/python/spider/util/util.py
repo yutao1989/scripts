@@ -174,7 +174,7 @@ def schedule(seeds,conf,data_fp):
                     continue
             path = "/"+"/".join(url_parts[3:])
             for sconf in conf[host]:
-                if sconf[0](path,sconf[1],html):
+                if sconf[0](path,sconf[1],html,item):
                     datas,urls = tparse(html,sconf[1],item)
                     for data in datas:
                         data_fp.write("%s\t%s\t%s\t%s\n" % (host,path,data[0],json.dumps(data[1])))

@@ -171,10 +171,10 @@ def parse(html,config, entrance):
     return data,url
 
 def path_detect(path_patern):
-    return lambda p,cfg,h:re.match(path_patern,p) is not None
+    return lambda p,cfg,h,entry:re.match(path_patern,p) is not None
 
 def node_filter(score,patern=None):
-    return lambda p,cfg,h:node_detect(p,cfg,h,score,patern)
+    return lambda p,cfg,h,entry:node_detect(p,cfg,h,score,patern)
 
 def node_detect(p,cfg,h,score=.5,patern=None):
     if patern is not None:

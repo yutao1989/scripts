@@ -12,11 +12,24 @@ sina_entry = {
 def detect_by_key(name,value):
     return lambda p,cfg,h,entry:True if name in entry and entry[name]==value else False
 
+add_level2 = lambda o1,o2:([],[{"name":o[1],"url":o[0],"level":2,"force":True} for o in o2["nameUrl"]])
+
+esf_l1_entry = {
+        "District":("//div[@id=\"list_D02_10\"]",[("nameUrl",["xpath_lambda","./div[@class=\"qxName\"]/a[@href]",lambda o,info:(util.parse_url(info["url"],o.get("href")),o.text.strip())])],add_level2),
+        }
+
+esf_l2_entry = {
+        "District":("//div[@id=\"div_shangQuan\"]",[("nameUrl",["xpath_lambda",".//p[@id=\"shangQuancontain\"]/a[@href]",lambda o,info:(util.parse_url(info["url"],o.get("href")),o.text.strip()) if o.text.strip()!="不限" else None]),("source",["jpath",["entrance","name"]])]),
+        }
+
 conf = {
         "www.sina.com.cn":[
             (util.path_detect("/"),sina_entry)
         ],
-        "esf.cq.fang.com":[()]
+        "esf.cq.fang.com":[
+            (detect_by_key("level",1),esf_l1_entry),
+            (detect_by_key("level",2),esf_l2_entry),
+        ]
 }
 
 if "__main__" == __name__:

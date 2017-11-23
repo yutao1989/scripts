@@ -109,7 +109,7 @@ def get_data(key,conf,node,ctx,result):
         if len(snodes) > 0:
             result[key] = [o.strip() for o in snodes]
     elif conf[0] == "xpath_lambda":
-        result[key] = [o1 for o in node.xpath(conf[1]) for o1 in [conf[2](o1,ctx)] if o1 is not None and (not hasattr(o1,"__len__") or o1.__len__()>0)]
+        result[key] = [o1 for o in node.xpath(conf[1]) for o1 in [conf[2](o,get_jpath(ctx,["entrance"]))] if o1 is not None and (not hasattr(o1,"__len__") or o1.__len__()>0)]
     elif conf[0] == "mxpath":
         lst = []
         length = -1

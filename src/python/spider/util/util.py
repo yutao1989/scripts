@@ -106,7 +106,7 @@ def get_page(status):
     time.sleep(2)
     html = ''
     code = ''
-    retry = 4
+    retry = 4 if "retry" not in status or not isinstance(status["retry"],int) else status["retry"]
     url = status["url"]
     method = "GET" if "method" not in status else status["method"].upper()
     headers = merge(Headers,status["headers"]) if "headers" in status else Headers

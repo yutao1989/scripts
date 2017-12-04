@@ -45,12 +45,10 @@ def fill_detail(key,source,target):
             tkey = field_info[0]
             if skey in source:
                 if isinstance(source[skey],dict) and "future" in source[skey]:
-                    raise Exception("recursively get value is not supported yet,will consider about that.")
+                    #raise Exception("recursively get value is not supported yet,will consider about that.")
+                    target[tkey]["value"].append(source[skey]["value"])
                 else:
-                    if "value" in target[tkey]:
-                        target[tkey]["value"].append(source[skey])
-                    else:
-                        target[tkey]["value"] = [source[skey]]
+                    target[tkey]["value"].append(source[skey])
 
 def fill_data(ctx):
     if len(ctx) > 1:
@@ -70,10 +68,6 @@ def get_context(lst):
                     mp[keys[0]] = [(key, keys[1])]
                 else:
                     mp[keys[0]].append((key, keys[1]))
-            elif item[2][key] is None or (hasattr(item[2][key],"__len__") and item[2][key].__len__()==0) or (isinstance(item[2][key],str) and item[2][key].strip()==""):
-                item[2].__delitem__(key)
-            elif isinstance(item[2][key],list) and len(item[2][key])==1:
-                item[2][key] = item[2][key][0]
         if len(mp) > 0:
             item[2]["__keys"] = mp
         paths.append((get_path(item[1]),item[0],item[2]))
@@ -95,13 +89,19 @@ def get_context(lst):
         if "__keys" in item[2]:
             del item[2]["__keys"]
         for key in item[2].keys():
+            value = None
             if isinstance(item[2][key],dict) and "future" in item[2][key]:
-                if "value" in item[2][key]:
-                    item[2][key] = item[2][key]["value"]
-                else:
-                    del item[2][key]
-            if isinstance(item[2][key],list) and len(item[2][key]) == 1:
-                item[2][key] = item[2][key][0]
+                value = item[2][key]["value"]
+            else:
+                value = item[2][key]
+            if value is None or (hasattr(value,"__len__") and value.__len__()==0) or (isinstance(value,str) and value.strip()==""):
+                item[2].__delitem__(key)
+            elif isinstance(value,list) and len(value)==1:
+                while isinstance(value,list) and len(value)==1:
+                    value = value[0]
+                item[2][key] = value
+            elif item[2][key] is not value:
+                item[2][key] = value
 
 def get_data(key,conf,node,ctx,result):
     if conf[0] == "xpath":
@@ -132,7 +132,7 @@ def get_data(key,conf,node,ctx,result):
     elif conf[0] == "const":
         result[key] = conf[1]
     elif conf[0] == "future":
-        result[key] = {"future":True,"key":(conf[1],conf[2])}
+        result[key] = {"future":True,"key":(conf[1],conf[2]),"value":[]}
     elif conf[0] == "jpath":
         result[key] = get_jpath(ctx, conf[1])
 

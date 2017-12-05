@@ -103,7 +103,8 @@ def get_header_ignore_case(mp,key):
     return ""
         
 def get_page(status):
-    time.sleep(2)
+    st = 2 if "__sleep" not in status or not isinstance(status["__sleep"],int) else status["__sleep"]
+    time.sleep(st)
     html = ''
     code = ''
     retry = 4 if "retry" not in status or not isinstance(status["retry"],int) else status["retry"]

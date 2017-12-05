@@ -38,6 +38,25 @@ def get_path(node):
         p = p.getparent()
     return "_".join(paths[::-1])
 
+def is_too_complicate(src,obj):
+    if src is obj:
+        return True
+    if isinstance(obj,list) or isinstance(obj,tuple):
+        result = False
+        for o in obj:
+            if is_too_complicate(src,o):
+                result = True
+                break
+        return result
+    elif isinstance(obj,dict):
+        for k in obj.keys():
+            if is_too_complicate(src,obj[k]):
+                result = True
+                break
+        return result
+    else:
+        return False
+
 def fill_detail(key,source,target):
     if "__keys" in target and key in target["__keys"]:
         for field_info in target["__keys"][key]:
@@ -45,7 +64,8 @@ def fill_detail(key,source,target):
             tkey = field_info[0]
             if skey in source:
                 if isinstance(source[skey],dict) and "future" in source[skey]:
-                    #raise Exception("recursively get value is not supported yet,will consider about that.")
+                    if is_too_complicate(target[tkey]["value"],source[skey]["value"]):
+                        raise Exception("recursively get value of self is not allowed")
                     target[tkey]["value"].append(source[skey]["value"])
                 else:
                     target[tkey]["value"].append(source[skey])
@@ -56,6 +76,29 @@ def fill_data(ctx):
         for item in ctx[:-1]:
             fill_detail(last[1],last[2],item[2])
             fill_detail(item[1],item[2],last[2])
+
+def get_single(value):
+    if isinstance(value,list):
+        if len(value) == 1:
+            count = 10
+            while isinstance(value,list) and len(value)==1 and count >= 0:
+                value = value[0]
+                count -= 1
+            if count > 0:
+                return value
+            else:
+                return None
+        elif len(value)>1:
+            nv = []
+            for o in value:
+                r = get_single(o)
+                if r is not None:
+                    nv.append(r)
+            return nv
+        else:
+            return None
+    else:
+        return value
 
 def get_context(lst):
     paths = []
@@ -88,20 +131,20 @@ def get_context(lst):
     for item in lst:
         if "__keys" in item[2]:
             del item[2]["__keys"]
+        rks = []
         for key in item[2].keys():
             value = None
             if isinstance(item[2][key],dict) and "future" in item[2][key]:
                 value = item[2][key]["value"]
             else:
                 value = item[2][key]
+            value = get_single(value)
             if value is None or (hasattr(value,"__len__") and value.__len__()==0) or (isinstance(value,str) and value.strip()==""):
-                item[2].__delitem__(key)
-            elif isinstance(value,list) and len(value)==1:
-                while isinstance(value,list) and len(value)==1:
-                    value = value[0]
-                item[2][key] = value
+                rks.append(key)
             elif item[2][key] is not value:
                 item[2][key] = value
+        for key in rks:
+            item[2].__delitem__(key)
 
 def get_data(key,conf,node,ctx,result):
     if conf[0] == "xpath":

@@ -42,6 +42,9 @@ esf_l2_entry = {
 
 all_text = lambda o,info:re.sub("\s+"," "," ".join(o.itertext())).strip()
 
+
+add_next_page = lambda o1,o2:([o for o in [o2] if o1=="Item"],[o for o in [o2] if o1=="NextPage" and "pageN" in o and o["pageN"]<10])
+
 esf_l3_entry = {
     "Item":(
         '//div[@class="houseList"]/dl',
@@ -57,6 +60,14 @@ esf_l3_entry = {
             ("price_total",["xpath_lambda","./dd/div[@class=\"moreInfo\"]/p[1]",all_text]),
             ("price_per_squaremeter",["xpath_lambda","./dd/div[@class=\"moreInfo\"]/p[2]",all_text])
         ]
+    ),
+    "NextPage":(
+        '//div[@id="list_D10_15"]',
+        [
+            ("url",["xpath",'./a[@id="PageControl1_hlk_next"]/@href']),
+            ("pageN",["xpath_lambda","./a[@class=\"pageNow\"]/text()",lambda o,info:int(o.strip()) if o is not None and o.strip().isdigit() else None])
+        ],
+        add_next_page
     )
 }
 
@@ -185,12 +196,12 @@ conf = {
 }
 
 if "__main__" == __name__:
-    #rp = open("data/fang2.txt","a")
-    rp = open("data/sina_news.txt","a")
+    rp = open("data/fang3.txt","a")
+    #rp = open("data/sina_news.txt","a")
     #seeds = [{"url":"http://esf.cq.fang.com","force":True,"level":1}]
     #seeds = [{"url":"http://www.sina.com.cn","force":True}]
-    #seeds = [{"url":"http://esf.cq.fang.com/house-a059-b05533/","force":True,"level":3}]
+    seeds = [{"url":"http://esf.cq.fang.com/house-a059-b05533/","force":True,"level":3}]
     #seeds = [{"url":"http://news.sina.com.cn/","force":True,"__sleep":1}]
-    seeds = [{"url":"http://finance.sina.com.cn/chanjing/gsnews/2017-12-07/doc-ifyppemf5719998.shtml","force":True,"__sleep":1}]
+    #seeds = [{"url":"http://finance.sina.com.cn/chanjing/gsnews/2017-12-07/doc-ifyppemf5719998.shtml","force":True,"__sleep":1}]
     params = (seeds,conf,rp)
     util.manage(util.schedule,params)

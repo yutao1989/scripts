@@ -154,7 +154,7 @@ def protect_call(f,params):
         return f(*params)
     except:
         tp,e,tb = sys.exc_info()
-        util.log_msg("call user defined function error:%s" % str(traceback.format_tb(tb)),"error")
+        util.log_msg("call user defined function error:<%s>,traceback:%s" % (str(e),str(traceback.format_tb(tb))),"error")
         return None
 
 def get_data(key,conf,node,ctx,result):

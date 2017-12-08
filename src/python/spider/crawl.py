@@ -2,6 +2,8 @@
 
 import util
 import re
+import time
+from lxml import etree
 
 split_dataurls = lambda o1,o2:([o2],[{"url":o[1],"title":o[0]} for o in o2["urlTitle"]] if "urlTitle" in o2 else [])
 
@@ -124,6 +126,44 @@ sina_news_entry = {
     )
 }
 
+sina_ent_entry = {
+    "Entry":(
+        "/html",
+        [
+            ("title",["xpath",'./head/title/text()']),
+            ("content",["xpath_lambda",'.//div[@id="artibody"]',lambda o,info:"\n".join(["".join(o1.itertext()) for o1 in o.xpath("./p")])]),
+            ("content_rich",["xpath_lambda",'.//div[@id="artibody"]',lambda o,info:"".join([etree.tounicode(o1) for o1 in o.getchildren() if o1.tag == "p"])]),
+            ("publish_time",["xpath_lambda",".//div[@id=\"top_bar\"]//span[@class=\"date\"]/text()",lambda o,info:[int(time.mktime(time.strptime(o1,"%Y年%m月%d日%H:%M"))) for o2 in [re.sub("\s+","",o)] for o1 in re.findall("\d{4}年\d{2}月\d{2}日\d{2}:\d{2}",o2)]]),
+            ("comments",["xpath_lambda",".//div[@id=\"top_bar\"]//a[@node-type=\"comment\"]/span/text()",lambda o,info:int(o.strip()) if o.strip().isdigit() else 0]),
+            ("keywords",["xpath",".//div[@id=\"keywords\"]/a/text()"])
+        ]
+    )
+}
+
+def finance_filter(o):
+    if o.tag == "p":
+        return True
+    elif o.tag == "div":
+        if "class" in o.keys() and o.get("class") == "ct_hqimg":
+            return True
+        else:
+            return False
+    else:
+        return False
+
+sina_finance_entry = {
+    "Entry":(
+        "/html",
+        [
+            ("title",["xpath",'./head/title/text()']),
+            ("content",["xpath_lambda",'.//div[@id="artibody"]',lambda o,info:"".join(["".join(o1.itertext()) for o1 in o.xpath("./p")])]),
+            ("content_rich",["xpath_lambda",'.//div[@id="artibody"]',lambda o,info:re.sub("\s+","","".join([etree.tounicode(o1) for o1 in o.getchildren() if finance_filter(o1)]))]),
+            ("publish_time",["xpath_lambda",'//span[@class=\"time-source\"]/text()',lambda o,info:[int(time.mktime(time.strptime(o1,"%Y年%m月%d日%H:%M"))) for o2 in [re.sub("\s+","",o)] for o1 in re.findall("\d{4}年\d{2}月\d{2}日\d{2}:\d{2}",o2)]]),
+            ("source",["xpath_lambda",'//span[@class=\"time-source\"]/span/a',lambda o,info:[(o1.get("href"),o1.text) for o1 in [o] if "href" in o1.keys()]]),
+        ]
+    )
+}
+
 conf = {
         "www.sina.com.cn":[
             (util.path_detect("/"),sina_entry)
@@ -135,6 +175,12 @@ conf = {
         ],
         "news.sina.com.cn":[
             (util.path_detect("/"),sina_news_entry)
+        ],
+        "ent.sina.com.cn":[
+            (util.path_detect(".*html"),sina_ent_entry)
+        ],
+        "finance.sina.com.cn":[
+            (util.path_detect(".*html"),sina_finance_entry)
         ]
 }
 
@@ -144,6 +190,7 @@ if "__main__" == __name__:
     #seeds = [{"url":"http://esf.cq.fang.com","force":True,"level":1}]
     #seeds = [{"url":"http://www.sina.com.cn","force":True}]
     #seeds = [{"url":"http://esf.cq.fang.com/house-a059-b05533/","force":True,"level":3}]
-    seeds = [{"url":"http://news.sina.com.cn/","force":True,"__sleep":1}]
+    #seeds = [{"url":"http://news.sina.com.cn/","force":True,"__sleep":1}]
+    seeds = [{"url":"http://finance.sina.com.cn/chanjing/gsnews/2017-12-07/doc-ifyppemf5719998.shtml","force":True,"__sleep":1}]
     params = (seeds,conf,rp)
     util.manage(util.schedule,params)

@@ -1,9 +1,12 @@
 #! /usr/bin/python -O
 #-*- coding=utf-8 -*-
 
+import sys
 from lxml import etree
 import math
 import re
+import util
+import traceback
 
 def get_jpath(obj, lst, default=None,p=None):
     tmp = obj
@@ -146,13 +149,21 @@ def get_context(lst):
         for key in rks:
             item[2].__delitem__(key)
 
+def protect_call(f,params):
+    try:
+        return f(*params)
+    except:
+        tp,e,tb = sys.exc_info()
+        util.log_msg("call user defined function error:%s" % str(traceback.format_tb(tb)),"error")
+        return None
+
 def get_data(key,conf,node,ctx,result):
     if conf[0] == "xpath":
         snodes = node.xpath(conf[1])
         if len(snodes) > 0:
             result[key] = [o.strip() for o in snodes]
     elif conf[0] == "xpath_lambda":
-        result[key] = [o1 for o in node.xpath(conf[1]) for o1 in [conf[2](o,get_jpath(ctx,["entrance"]))] if o1 is not None and (not hasattr(o1,"__len__") or o1.__len__()>0)]
+        result[key] = [o1 for o in node.xpath(conf[1]) for o1 in [protect_call(conf[2],(o,get_jpath(ctx,["entrance"])))] if o1 is not None and (not hasattr(o1,"__len__") or o1.__len__()>0)]
     elif conf[0] == "mxpath":
         lst = []
         length = -1
@@ -171,7 +182,7 @@ def get_data(key,conf,node,ctx,result):
             lst.append(item)
         result[key] = list(zip(*tuple(lst)))
     elif conf[0] == "func":
-        result[key] = conf[1](ctx)
+        result[key] = protect_call(conf[1],(ctx,))
     elif conf[0] == "const":
         result[key] = conf[1]
     elif conf[0] == "future":
